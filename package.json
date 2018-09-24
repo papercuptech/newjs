@@ -1,0 +1,19 @@
+{
+  "name": "newjs",
+  "version": "1.0.0-a.0",
+  "description": "new() to integrate mocking and di",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papercuptech/newjs.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/papercuptech/newjs/issues"
+  },
+  "homepage": "https://github.com/papercuptech/newjs#readme"
+}
