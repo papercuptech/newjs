@@ -1,0 +1,25 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "eldc",
+			"program": "${workspaceFolder}/src/eldc.ts",
+			"outFiles": ["${workspaceFolder}/obj/src/*.js"],
+			//"runtimeArgs": [
+			//	"--trace-warnings"
+			//]
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "test",
+			"program": "${workspaceFolder}/src/test.ts",
+			"outFiles": ["${workspaceFolder}/obj/src/*.js"],
+		}
+	]
+}

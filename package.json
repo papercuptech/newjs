@@ -1,5 +1,5 @@
 {
-  "name": "newjs",
+  "name": "new-newjs",
   "version": "1.0.0-a.0",
   "description": "new() to integrate mocking and di",
   "main": "index.js",
@@ -15,5 +15,12 @@
   "bugs": {
     "url": "https://github.com/papercuptech/newjs/issues"
   },
-  "homepage": "https://github.com/papercuptech/newjs#readme"
+  "homepage": "https://github.com/papercuptech/newjs#readme",
+  "devDependencies": {
+    "@types/node": "^10.11.2",
+    "typescript": "^3.1.1"
+  },
+  "dependencies": {
+    "source-map-support": "^0.5.9"
+  }
 }
