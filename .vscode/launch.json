@@ -18,8 +18,8 @@
 			"type": "node",
 			"request": "launch",
 			"name": "test",
-			"program": "${workspaceFolder}/src/test.ts",
-			"outFiles": ["${workspaceFolder}/obj/src/*.js"],
+			"program": "${workspaceFolder}/test.ts",
+			"outFiles": ["${workspaceFolder}/**/*.js"],
 		}
 	]
 }

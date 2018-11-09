@@ -1,0 +1,16 @@
+{
+	"extends": "../../tsconfig",
+	"compilerOptions": {
+		"composite": true,
+		"target": "es2018",
+		"module": "commonjs",
+		"rootDir": "./src",
+		"outDir": "./out",
+		"baseUrl": "./src",
+		"sourceMap": true
+
+	},
+	"exclude": [
+		"./out"
+	]
+}

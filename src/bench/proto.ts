@@ -1,3 +1,5 @@
+import defineContext, {oFunction} from 'eldc'
+
 const symBox = Symbol('newjs-box')
 const symCtor = Symbol('newjs-ctor')
 const symInst = Symbol('newjs-base-bound')
@@ -44,7 +46,7 @@ function makeStatics(Base, Patch, static_, isMocked) {
 function makePatch(Class, Impl, isMocked) {
 	const Base = Box.GetBase(Class)
 	const {constructor_, static_} = Impl
-	const Patch = Function('Base', 'ctor', 'symInst', `
+	const Patch = oFunction('Base', 'ctor', 'symInst', `
 		return class ${Class.name}$${isMocked ? 'Mock' : 'Patch'} ${!isMocked && 'extends Base' || ''} {
 			constructor(...args) {
 				let _this = ctor ?
@@ -219,11 +221,13 @@ class Box {
 		const len = using.length
 		let i = 0
 		while(i < len) {
+			/*
 			if(i === len - 1) {
 				const fn = using[i]
 				if(!isFn(fn)) throw new Error('last unpaired argument must be a function')
 				return fn
 			}
+			*/
 			const Class = using[i++]
 			if(isArr(Class)) this.bind(Class)
 			else {
@@ -269,12 +273,10 @@ class Box {
 
 }
 
-import defineContext from 'eldc'
-
-const Boxed = defineContext(
+const Boxed = defineContext({},
 {
 	create(using) {return new Box(using)},
-	top(box) {Box.Top = Box.Current =  box},
+	top(box) {Box.Top = Box.Current = box},
 	enter() {
 		this.enter()
 		Box.Current = this
@@ -307,13 +309,13 @@ export namespace box {
 export function newjs(Base) {
 	const className = Base.name
 	const Class = switchAll
-		? Function('Box', 'symBox', 'symCtor', `
+		? oFunction('Box', 'symBox', 'symCtor', `
 				return function ${className}(...args) {
 					return new (${className}[symCtor])(...args)
 				}
 			`)(Box, symBox, symCtor)
 
-		: Function('Box', 'symBox', 'symCtor', 'symOff', `
+		: oFunction('Box', 'symBox', 'symCtor', 'symOff', `
 				return class ${className} {
 					constructor(...args) {
 						if(${className}[symBox] !== Box.Current && ${className}[symOff]) 

@@ -1,3 +1,17 @@
+'use strict'
+
+import defineContext, {oFunction} from 'eldc'
+
+const {
+	defineProperty,
+	getOwnPropertyDescriptor,
+	getOwnPropertyNames,
+} = Object
+
+function isFn(thing) {return typeof thing === 'function'}
+function isObj(thing) {return thing !== null && typeof thing === 'object'}
+function isArr(thing) {return Array.isArray(thing)}
+
 const symBox = Symbol('newjs-box')
 const symCtor = Symbol('newjs-ctor')
 const symInst = Symbol('newjs-base-bound')
@@ -11,46 +25,43 @@ try {
 }
 catch{}
 
-function isFn(thing) {return typeof thing === 'function'}
-function isObj(thing) {return thing !== null && typeof thing === 'object'}
-function isArr(thing) {return Array.isArray(thing)}
-
 function makeStatics(Base, Patch, static_, isMocked) {
 	if(!static_) return
-	Object.getOwnPropertyNames(static_).forEach(name => {
-		const desc = Object.getOwnPropertyDescriptor(static_, name)
-		if(!desc) return
+
+	for(const name of getOwnPropertyNames(static_)) {
+		const desc = getOwnPropertyDescriptor(static_, name)
+		if(!desc) continue
 		if(isObj(desc.value) && isFn(desc.value.get)) {
 			const value = desc.value
 			delete desc.value
 			desc.get = value.get
 			desc.set = value.set
 		}
-		Object.defineProperty(Patch, name, desc)
-	})
+		defineProperty(Patch, name, desc)
+	}
 
 	if(isMocked) return
 
-	Base.getOwnPropertyNames().forEach(name =>
-		Object.defineProperty(Patch, name, {
+	for(const name of Base.getOwnPropertyNames())
+		defineProperty(Patch, name, {
 			configurable: true,
 			enumerable: true,
 			get() {return Base[symCtor][name]},
 			set(v) {Base[symCtor][name] = v}		
 		})
-	)
 }
 
 function makePatch(Class, Impl, isMocked) {
 	const Base = Box.GetBase(Class)
 	const {constructor_, static_} = Impl
-	const Patch = Function('Base', 'ctor', 'symInst', `
-		return class ${Class.name}$${isMocked ? 'Mock' : 'Patch'} ${!isMocked && 'extends Base' || ''} {
+
+	const Patch = oFunction('Base', 'ctor', 'symInst', `
+		return class ${Class.name}$${isMocked ? 'Mock' : 'Patch extends Base'} {
 			constructor(...args) {
 				let _this = ctor ?
-					${isMocked 
-						? ' ctor(() => this, ...args) : this'
-						: ' ctor(() => super(), ...args) : super(...args)'
+					${isMocked
+						? 'ctor(() => this, ...args) : this'
+						: 'ctor(() => super(), ...args) : super(...args)'
 					}
 				if(!_this) _this = this
 				if(_this) _this[symInst] = {}
@@ -63,9 +74,9 @@ function makePatch(Class, Impl, isMocked) {
 
 	const baseProto = Base.prototype
 	const patchProto = Patch.prototype
-	const names = Object.getOwnPropertyNames(Impl)
+	const names = getOwnPropertyNames(Impl)
 
-	names.forEach(name => {
+	for(const name of names) {
 		switch(name) {
 		case 'constructor':
 		case 'prototype':
@@ -73,9 +84,9 @@ function makePatch(Class, Impl, isMocked) {
 		case 'constructor_':
 			break;
 		default:
-			let propImpl = Object.getOwnPropertyDescriptor(Impl, name)
+			let propImpl = getOwnPropertyDescriptor(Impl, name)
 			if(!propImpl) break
-			if(isFn(propImpl.value)) {
+			if(isFn(propImpl.value) && false) {
 				const implFn = propImpl.value
 				propImpl = {
 					configurable: true,
@@ -84,17 +95,19 @@ function makePatch(Class, Impl, isMocked) {
 						let baseFn = !isMocked && baseProto[name]
 						if(!isFn(baseFn)) baseFn = isMocked ? function() {} : undefined
 						this[symInst][name] = baseFn && baseFn.bind(this)
-						const value = function(...args) {return implFn.call(this, this[symInst], ...args)}
-						Object.defineProperty(value, 'length', {value: implFn.length - 1})
-						Object.defineProperty(this, name, {configurable: true, enumerable: true, writable: true, value})
+						const value = function(...args) {
+							return implFn.call(this, this[symInst], ...args)
+						}
+						defineProperty(value, 'length', {value: implFn.length - 1})
+						defineProperty(this, name, {configurable: true, enumerable: true, writable: true, value})
 						return this[name]
 					}
 				}
 			}
-			Object.defineProperty(patchProto, name, propImpl)
+			defineProperty(patchProto, name, propImpl)
 			break
 		}
-	})
+	}
 
 	return Patch
 }
@@ -154,13 +167,13 @@ class Box {
 				const staticInstance = Box.Current.staticInstances.get(Class)
 				const implProp = Impl[symStatic][name]
 				if(implProp.writable) implProp.value = staticInstance[name]
-				Object.defineProperty(Class, name, implProp)
+				defineProperty(Class, name, implProp)
 				return Class[name]
 			},
 			set(v) {
 				classProp.fromBox = Box.Current
 				Box.TouchedStaticProperties.add(classProp)
-				Object.defineProperty(Class, name, Impl[symStatic][name])
+				defineProperty(Class, name, Impl[symStatic][name])
 				Class[name] = v
 			},
 			fromBox: Box.Current,
@@ -168,18 +181,18 @@ class Box {
 				const implProp = Impl[symStatic][name]
 				const staticInstance = this.fromBox.staticInstances.get(Class)
 				if(implProp.writable) staticInstance[name] = Class[name]
-				Object.defineProperty(Class, name, classProp)
+				defineProperty(Class, name, classProp)
 				Box.TouchedStaticProperties.delete(classProp)
 			}
 		}
-		Object.defineProperty(Class, name, classProp)
+		defineProperty(Class, name, classProp)
 	}
 
 	interceptStatics(Class, Impl) {
 		let staticInstance
 
-		Object.getOwnPropertyNames(Impl).forEach(name => {
-			if(name === 'length' || name === 'prototype' || name === 'name') return
+		for(const name of getOwnPropertyNames(Impl)) {
+			if(name === 'length' || name === 'name' || name === 'prototype') continue
 
 			staticInstance = staticInstance || Object.create(null)
 
@@ -190,13 +203,13 @@ class Box {
 			implProp.configurable = true
 			staticInstance[symStatic][name] = implProp
 
-			Object.defineProperty(Impl, name, {
+			defineProperty(Impl, name, {
 				configurable: false,
 				enumerable: implProp.enumerable,
 				get() {return Class[name]},
 				set(v) {Class[name] = v}
 			})
-		})
+		}
 
 		if(!staticInstance) return
 
@@ -219,21 +232,18 @@ class Box {
 		const len = using.length
 		let i = 0
 		while(i < len) {
+			/*
 			if(i === len - 1) {
 				const fn = using[i]
 				if(!isFn(fn)) throw new Error('last unpaired argument must be a function')
 				return fn
 			}
+			*/
 			const Class = using[i++]
 			if(isArr(Class)) this.bind(Class)
 			else {
-				let Impl = using[i++]	|| {constructor_() {throw new Error(`${Class.name} de-implemented`)}}
-				if(!isFn(Impl)) {
-					const isMocked = !isArr(Impl)
-					if(!isMocked) Impl = Impl[0]
-					if(!isObj(Impl)) throw `${isMocked ? 'mock' : 'patch'} implementation must be an object`
-					Impl = makePatch(Class, Impl, isMocked)
-				}
+				let Impl = using[i++]	|| (class {constructor() {throw new Error(`${Class.name} de-implemented`)}})
+				if(isObj(Impl)) Impl = makePatch(Class, Impl, true)
 				this.bindImplTo(Class, Impl)
 			}
 		}
@@ -246,7 +256,7 @@ class Box {
 			leftBox = rightBox
 			rightBox = this.staticProperties
 		}
-		leftBox.forEach(touched => rightBox.has(touched) && touched.unhoist())
+		for(const touched of leftBox) rightBox.has(touched) && touched.unhoist()
 	}
 
 	detectChangedStatics() {}
@@ -255,7 +265,7 @@ class Box {
 		if(!this.parent) this.bind()
 		if(this.hasStatics) this.unhoistStatics()
 		//detectChangedStatics()
-		if(switchAll) this.registry.forEach(Class => Box.SwitchImplFor(Class))		
+		if(switchAll) this.registry.forEach((_, Class)=> Box.SwitchImplFor(Class))
 	}
 
 	base(...using) {
@@ -269,13 +279,11 @@ class Box {
 
 }
 
-import defineContext from './eldc'
 
-const Boxed = defineContext({},
-{
+const Boxed = defineContext({}, {
 	create(using) {return new Box(using)},
 	top(box) {Box.Top = Box.Current =  box},
-	enter() {
+	enter(this:Box, from:Box) {
 		this.enter()
 		Box.Current = this
 	}
@@ -307,13 +315,13 @@ export namespace box {
 export function newjs(Base) {
 	const className = Base.name
 	const Class = switchAll
-		? Function('Box', 'symBox', 'symCtor', `
+		? oFunction('Box', 'symBox', 'symCtor', `
 				return function ${className}(...args) {
 					return new (${className}[symCtor])(...args)
 				}
 			`)(Box, symBox, symCtor)
 
-		: Function('Box', 'symBox', 'symCtor', 'symOff', `
+		: oFunction('Box', 'symBox', 'symCtor', 'symOff', `
 				return class ${className} {
 					constructor(...args) {
 						if(${className}[symBox] !== Box.Current && ${className}[symOff]) 

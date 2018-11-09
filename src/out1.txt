@@ -1,0 +1,99 @@
+"C:\Program Files\JetBrains\IntelliJ IDEA 2018.2.1\bin\runnerw.exe" C:\Users\Paul\AppData\Local\nvs\default\node.exe C:\src\newjs\obj\test.js
+(node:23300) UnhandledPromiseRejectionWarning: TypeError: Cannot read property 'next' of undefined
+    at PromiseFramer.enter (C:\src\eldc\index.v3.1.ts:209:31)
+    at C:\src\eldc\index.v3.1.ts:129:3
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:744:11)
+    at startup (internal/bootstrap/node.js:285:19)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:739:3)
+(node:23300) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). (rejection id: 1)
+(node:23300) [DEP0018] DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.
+(node:23300) UnhandledPromiseRejectionWarning: TypeError: Cannot read property 'next' of undefined
+    at PromiseFramer.leave (C:\src\eldc\index.v3.1.ts:230:31)
+    at C:\src\eldc\index.v3.1.ts:129:3
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:744:11)
+    at startup (internal/bootstrap/node.js:285:19)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:739:3)
+(node:23300) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). (rejection id: 2)
+0   :  [_2_]
+0   :  [_4_]
+0   :  [_17_]
+0   :  Class
+0   :
+0   :  ========================== boxTwo(...)
+0   :  -------------------------- QUEUE 0 Enter boxTwo
+0   :  -> 1
+1   :
+1   :  ========================== boxThree(...)
+1   :  -------------------------- QUEUE 1 Enter boxThree
+1   :  -> 2
+2   :  [_18_]
+2   :  -> 1
+1   :  -------------------------- QUEUE 2 Leave boxThree
+1   :  ========================== boxThree(...)
+1   :
+1   :  -> 0
+0   :  -------------------------- QUEUE 3 Leave boxTwo
+0   :  ========================== boxTwo(...)
+0   :
+0   :
+0   :  -------------------------- 0 Enter boxTwo
+0   :  -> 1
+1   :
+1   :  -------------------------- 1 Enter boxThree
+1   :  <<<_19_>>>
+1   :  <<<_20_>>>
+1   :  -> 0
+0   :  -------------------------- 2 Leave boxThree
+0   :
+0   :
+0   :  ========================== _18_(...)
+0   :  -------------------------- QUEUE 4 Enter _18_
+0   :  -> 2
+2   :  -> 0
+0   :  -------------------------- QUEUE 5 Leave _18_
+0   :  ========================== _18_(...)
+0   :
+0   :  [noop]
+0   :  [bound onceWrapper]
+0   :  [_21_]
+0   :  [bound onceWrapper]
+0   :  [bound onceWrapper]
+0   :  [bound onceWrapper]
+0   :  [bound onceWrapper]
+0   :
+0   :  ========================== _21_(...)
+0   :  ========================== _21_(...)
+0   :
+0   :
+0   :  -------------------------- 4 Enter _18_
+0   :  -> 2
+2   :
+2   :  ========================== _19_(...)
+2   :  -------------------------- QUEUE 6 Enter _19_
+2   :  -> 1
+1   :  -> 2
+2   :  -------------------------- QUEUE 7 Leave _19_
+2   :  ========================== _19_(...)
+2   :
+2   :  -> 0
+0   :  -------------------------- 5 Leave _18_
+0   :
+0   :
+0   :  -------------------------- 6 Enter _19_
+0   :  -> 1
+1   :  -------------------------- QUEUE 8 Continue _19_
+1   :  b false
+1   :  -> 2
+2   :  -------------------------- 7 Leave _19_
+2   :
+2   :
+2   :  -------------------------- 8 Continue _19_
+2   :  -> 1
+1   :
+1   :  ========================== _17_(...)
+1   :  -------------------------- QUEUE 9 Enter _17_
+1   :  -> 0
+
+Process finished with exit code 0
