@@ -33,12 +33,12 @@ async function* test(runs, work, fn, ...args) {
 		let worked = work
 		const start = process.hrtime()
 		while(worked--) {
-			if(len === 0) fn()
-			if(len === 1) fn(a)
-			if(len === 2) fn(a,b)
-			if(len === 3) fn(a,b,c)
-			if(len === 4) fn(a,b,c,d)
-			if(len === 5) fn(a,b,c,d,e)
+			if(len === 0) {fn(); continue}
+			if(len === 1) {fn(a); continue}
+			if(len === 2) {fn(a,b); continue}
+			if(len === 3) {fn(a,b,c); continue}
+			if(len === 4) {fn(a,b,c,d); continue}
+			if(len === 5) {fn(a,b,c,d,e); continue}
 		}
 		const durNs = process.hrtime(start)[1]
 		totDurNs = totDurNs + durNs
@@ -48,9 +48,46 @@ async function* test(runs, work, fn, ...args) {
 		const totMs = totDurNs / 1000000
 		const avgMs = totMs / run
 		yield {run, durMs, minMs, maxMs, avgMs, totMs, mem: process.memoryUsage()}
-		await new Promise(r => setTimeout(r, 1))
+		await new Promise(r => setTimeout(r, 500))
 	}
 }
+
+
+function pad(width, str, padWith = ' ') {
+	str = str || ''
+	const start = width > 0 || str.length < (-width) ? 0 : str.length + width
+	let right = width > 0
+	width = Math.abs(width)
+	let padded = str.substring(start, start + width)
+	let padLen = width > padded.length ? width - padded.length : 0
+	while(padLen--)
+		if(right) padded += padWith
+		else padded = padWith + padded
+	return padded
+}
+
+
+function fixd(int, frac, n) {
+	return pad(-(int + (frac ? 1 : 0) + frac), n.toFixed(frac))
+}
+
+function f(n) {return fixd(5, 3, n)}
+
+async function testLog(runs, work, desc, bfr, fn, ...args) {
+	log(`"${desc}"`)
+	log(`node: ${process.versions.node}   v8: ${process.versions.v8}`)
+	log(`runs: ${fixd(3, 0, runs)}   work: ${fixd(9, 0, work)}`)
+	log('===================================================================')
+	log('run       dur       min       avg       max       tot h-used  h-tot')
+	log('--- --------- --------- --------- --------- --------- ------ ------')
+	for await(const r of test(runs, work, bfr && bfr(fn, args) || fn, ...args)) {
+		log(`${fixd(3, 0, r.run)} ${f(r.durMs)} ${f(r.minMs)} ${f(r.avgMs)} ${f(r.maxMs)} ${f(r.totMs)} ${fixd(4, 1, r.mem.heapUsed / 1000000)} ${fixd(4, 1, r.mem.heapTotal / 1000000)}`)
+	}
+	log('===================================================================\n\n')
+}
+
+
+
 
 
 function fn(count) {
@@ -133,70 +170,31 @@ function fnXx2(a,b,c,d) {
 	if(len === 3) return fnXx1.call(this, a, b, c)
 }
 
-function pad(width, str, padWith = ' ') {
-	str = str || ''
-	const start = width > 0 || str.length < (-width) ? 0 : str.length + width
-	let right = width > 0
-	width = Math.abs(width)
-	let padded = str.substring(start, start + width)
-	let padLen = width > padded.length ? width - padded.length : 0
-	while(padLen--)
-		if(right)
-			padded += padWith
-		else
-			padded = padWith + padded
-	return padded
-}
-
-
-function fixd(int, frac, n) {
-	return pad(-(int + (frac ? 1 : 0) + frac), n.toFixed(frac))
-}
-
-function f(n) {return fixd(5, 3, n)}
-
-async function testLog(runs, work, desc, fn, ...args) {
-	log(`"${desc}"`)
-	log(`  runs: ${fixd(3, 0, runs)}   work: ${fixd(9, 0, work)}`)
-	log('===================================================================')
-	log('run       dur       min       avg       max       tot h-used  h-tot')
-	log('--- --------- --------- --------- --------- --------- ------ ------')
-	for await(const r of test(runs, work, fn, ...args)) {
-		log(`${fixd(3, 0, r.run)} ${f(r.durMs)} ${f(r.minMs)} ${f(r.avgMs)} ${f(r.maxMs)} ${f(r.totMs)} ${fixd(4, 1, r.mem.heapUsed / 1000000)} ${fixd(4, 1, r.mem.heapTotal / 1000000)}`)
-	}
-	log('===================================================================\n\n')
-}
-
-function logVer() {
-	log(`\n\nnode: ${process.versions.node}   v8: ${process.versions.v8}\n`)
-}
-
 ;(async () => {
 	const runs = 8
-	const work = 10000000
+	const work = 10_000_000
 
-	logVer()
+	await testLog(runs, work, 'Direct Call', null, fn)
 
-	await testLog(runs, work, 'Direct Call', fn)
 
-	await testLog(runs, work, 'one hop - fn(a,b)', fnC1, 0, 1)
-	await testLog(runs, work, 'two hops - fn(a,b)', fnC2, 0, 1)
+	await testLog(runs, work, 'one hop - fn(a,b)', null, fnC1, 0, 1)
+	await testLog(runs, work, 'two hops - fn(a,b)', null, fnC2, 0, 1)
 
-	await testLog(runs, work, 'one hop - len fn(a,b)', fnXx1, 0, 1)
-	await testLog(runs, work, 'two hops - len fn(a,b)', fnXx2, 0, 1)
+	await testLog(runs, work, 'one hop - len fn(a,b)', null, fnXx1, 0, 1)
+	await testLog(runs, work, 'two hops - len fn(a,b)', null, fnXx2, 0, 1)
 
-	await testLog(runs, work, 'one hop - apply(arguments)', fn1, 0, 1)
-	await testLog(runs, work, 'two hops - apply(arguments)', fn2, 0, 1)
+	await testLog(runs, work, 'one hop - apply(arguments)', null, fn1, 0, 1)
+	await testLog(runs, work, 'two hops - apply(arguments)', null, fn2, 0, 1)
 
-	await testLog(runs, work, 'one hop - apply(args)', fnA1, 0, 1)
-	await testLog(runs, work, 'two hops - apply(args)', fnA2, 0, 1)
-
-	return
+	await testLog(runs, work, 'one hop - apply(args)', null, fnA1, 0, 1)
+	await testLog(runs, work, 'two hops - apply(args)', null, fnA2, 0, 1)
 })
 //()
 
+const symObj = Symbol()
 function stuffWithProps(count) {
 	const obj = Object.create(null)
+	obj[symObj] = obj
 	const props = obj.props = []
 	const map = obj.map = new Map()
 	while(count--) {
@@ -236,8 +234,11 @@ function testObj(obj) {
 	let len = props.length
 	let arr = []
 	while(len--) {
-		arr.push(obj[props[len]])
+		const prop = props[len]
+		obj = obj[symObj]
+		arr.push(obj[prop])
 	}
+	const l = arr
 }
 
 function testMap(obj) {
@@ -248,20 +249,143 @@ function testMap(obj) {
 	while(len--) {
 		arr.push(map[props[len]])
 	}
+	const l = arr
 }
 
 ;(async () => {
 	const obj = stuffWithProps(100000)
 	shuffle(obj.props, 3)
-	await testLog(8, 4, 'obj', testObj, obj)
-	await testLog(8, 4, 'map', testMap, obj)
+	await testLog(8, 4, 'obj', null, testObj, obj)
+	await testLog(8, 4, 'map', null, testMap, obj)
 })
 //()
 
 ;(async () => {
 	function A() {}
 	function B() {}
-	await testLog(8, 1_000_000, 'setPr', function C() {
+	await testLog(8, 1_000_000, 'setPr', null, function C() {
 		Object.setPrototypeOf(A, B)
 	})
-})()
+})
+//()
+
+
+
+function make(fn, args) {
+	const name = args[0]
+	return Function('fn', `
+		return function ${name}(x,a,b,c,d) {
+			const len = arguments.length - 1
+			if(len === 0) return fn.call(this)
+			if(len === 1) return fn.call(this, a)
+			if(len === 2) return fn.call(this, a, b)
+			if(len === 3) return fn.call(this, a, b, c)
+			if(len === 4) return fn.call(this, a, b, c, d)
+			return fn.call(this, ...arguments)
+		}
+	`)(fn)
+}
+
+function makeNCall(fn, a, b, c, d) {
+	const m = Function('fn', `
+		return function made(a,b,c,d) {
+			const len = arguments.length
+			if(len === 0) return fn.call(this)
+			if(len === 1) return fn.call(this, a)
+			if(len === 2) return fn.call(this, a, b)
+			if(len === 3) return fn.call(this, a, b, c)
+			if(len === 4) return fn.call(this, a, b, c, d)
+			return fn.call(this, ...arguments)
+		}
+	`)(fn)
+
+	const len = arguments.length - 1
+	if(len === 0) return m.call(this)
+	if(len === 1) return m.call(this, a)
+	if(len === 2) return m.call(this, a, b)
+	if(len === 3) return m.call(this, a, b, c)
+	if(len === 4) return m.call(this, a, b, c, d)
+	return m.call(this, ...arguments)
+}
+
+function hop(fn) {
+
+}
+
+;(async () => {
+	await testLog(8, 10_000_000, 'makeFn',
+		make, fn, 'test', 0, 1
+	)
+})
+//()
+
+
+function makeFn(ofn) {
+	return function fn(a,b,c,d) {
+		const len = arguments.length
+		if(len === 0) return ofn.call(this)
+		if(len === 1) return ofn.call(this, a)
+		if(len === 2) return ofn.call(this, a, b)
+		if(len === 3) return ofn.call(this, a, b, c)
+		if(len === 4) return ofn.call(this, a, b, c, d)
+		return ofn.call(this, ...arguments)
+	}
+}
+
+function callFn(ofn, args) {
+	const len = args.length
+	if(len === 0) return ofn.call(this)
+	let a = args[0]
+	if(len === 1) return ofn.call(this, a)
+	let b = args[1]
+	if(len === 2) return ofn.call(this, a, b)
+	let c = args[2]
+	if(len === 3) return ofn.call(this, a, b, c)
+	let d = args[3]
+	if(len === 4) return ofn.call(this, a, b, c, d)
+	return ofn.call(this, ...args)
+}
+
+;(async () => {
+	const runs = 8
+	const work = 10_000_000
+
+	await testLog(runs, work, 'Direct Call', null, fn)
+	await testLog(runs, work, 'callFn', null, callFn, fn, [0, 1])
+
+
+	await testLog(runs, work, 'one hop - fn(a,b)', null, fnC1, 0, 1)
+	await testLog(runs, work, 'two hops - fn(a,b)', null, fnC2, 0, 1)
+
+	await testLog(runs, work, 'callFn', null, callFn, fn, [0, 1])
+	await testLog(runs, work, 'callFn', null, callFn, fn, [0, 1])
+
+	//await testLog(runs, work, 'makeFn', null, makeFn(fn), 0, 1)
+	//await testLog(runs, work, 'makeFn', null, makeFn(fn), 0, 1)
+
+
+	await testLog(runs, work, 'one hop - fn(a,b)', null, fnC1, 0, 1)
+	await testLog(runs, work, 'two hops - fn(a,b)', null, fnC2, 0, 1)
+
+	//await testLog(runs, work, 'makeFn', null, makeFn(fn), 0, 1)
+})
+//()
+
+
+;(async () => {
+	const runs = 8
+	const work = 10_000_000
+
+	await testLog(runs, work, 'Direct Call', null, fn)
+	await testLog(runs, work, 'callFn', null, callFn, fn, [0, 1])
+})
+()
+
+;(async () => {
+	const runs = 8
+	const work = 10_000_000
+
+	await testLog(runs, work, 'callFn', null, callFn, fn, [0, 1])
+	await testLog(runs, work, 'Direct Call', null, fn)
+})
+//()

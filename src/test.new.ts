@@ -1,5 +1,5 @@
-import defineContext, {log, _plog, stopPlg} from 'eldc'
-import newjs, {box, SymNewJs} from './index'
+import context, {log, _plog, stopPlg} from 'eldc'
+import newjs, {box, SymBoxed} from './index'
 
 process.on('beforeExit', () => {
 	stopPlg()
@@ -7,7 +7,8 @@ process.on('beforeExit', () => {
 })
 //const log = console.log
 
-const MyContext = defineContext({prop: "Zero"})
+const MyContext = context({prop: "Zero"})
+
 
 
 
@@ -29,12 +30,12 @@ function test(fn, runs, load) {
 }
 
 class MyBase {
-	age = 0
+	age:any = 0
 	constructor() {
 		this.age = 1
 	}
 	method() {
-		return 'SomeBase'
+		return 'SomeBase: ' + this.age
 	}
 }
 
@@ -47,9 +48,19 @@ class SomeClass extends MyBase {
 	method() {
 		return super.method() + 'SomeClass'
 	}
-
 }
 
+
+@newjs
+class SomeClassA extends MyBase {
+	constructor() {
+		super()
+		this.age = 45
+	}
+	method() {
+		return super.method() + 'SomeClass'
+	}
+}
 
 
 ;(() => {
@@ -76,9 +87,32 @@ class SomeClass extends MyBase {
 				return super.method() + 'mock'
 				//return 'mock'
 			}
-			age: 24
+			age = 24
 		}
 	)(function boxOne() {
+
+		box(
+			SomeClassA, class Wow extends SomeClass[SymBoxed] {
+				constructor() {
+					super()
+				}
+				age = 121212
+				method() {
+					return ' Mocked ' + super.method()
+				}
+			}
+		)(function boxTwo() {
+			const p = new SomeClassA()
+			const isa = p instanceof MyBase
+
+			const x = new SomeClass()
+			x.age = x.method()
+			x.age = x.method()
+
+			p.age = p.method()
+			p.age = p.method()
+			p.age = p.method()
+		})
 
 		setTimeout(() => {
 			console.log('hmm')
@@ -86,6 +120,7 @@ class SomeClass extends MyBase {
 
 		test(() => {
 			const p = new SomeClass()
+			const isa = p instanceof SomeClass
 			//const p = SomeClass[SymNewJs]()
 			//const p = SomeClass.NewJs()
 			const x = p
@@ -149,6 +184,7 @@ class AnotherClass extends SomeOldClass {
 ;(() => {
 	test(() => {
 		const p = new AnotherClass()
+		const isa = p instanceof AnotherClass
 		p.age = p.method()
 		p.age = p.method()
 		p.age = p.method()

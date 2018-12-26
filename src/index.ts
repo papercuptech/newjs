@@ -1,7 +1,7 @@
 'use strict'
 
 
-import defineContext, {oFunction} from 'eldc'
+import context, {Context, oFunction} from 'eldc'
 
 const {
 	create: objCreate,
@@ -19,10 +19,132 @@ const {
 } = require('util')
 
 const symClassSym = Symbol('newjs-class-symbol')
-export const SymNewJs = Symbol('newjs-new')
+export const SymBoxed = Symbol('newjs-boxed')
+const symFace = Symbol('newjs-face-symbol')
 
+const symBox = Symbol('newjs-box')
+
+const symImpl = Symbol('newjs-impl')
+
+class BoxContext extends Context {
+	constructor(props, initial, parent) {
+		super(props, initial, parent)
+		parent && setPrototypeOf(this, parent)
+		this.registerTemplate(initial.faceImpls)
+	}
+
+	registerTemplate(faceImpls) {
+		const len = faceImpls.length
+		let i = 0
+		while(i < len) {
+			const Face = faceImpls[i++]
+			if(isArr(Face)) this.registerTemplate(Face)
+			else {
+				let Impl = faceImpls[i++]
+					|| (class {constructor() {throw new Error(`${Face.name} de-implemented`)}})
+				this.register(Face, Impl)
+			}
+		}
+	}
+
+	register(Face, Impl) {
+		const faceSymbol = Face[symFace]
+		if(!faceSymbol) throw new Error('not a newjs class')
+		defineProperty(Impl.prototype, 'constructor', {
+			configurable: true,
+			enumerable: true,
+			writable: true,
+			value: Face
+		})
+		this[faceSymbol] = Impl
+	}
+
+	// statics define contextualized properties and their defaults
+	static faceImpls = []
+
+	static Top:BoxContext
+	static Current:BoxContext
+}
+
+const BoxFactory = context(BoxContext)
+
+
+export default function newjs<T extends Function>(Class:T) {
+	if(!isFn(Class) || !Class.prototype) throw new Error('sorry... your core is iron.. going supernova')
+	const faceName = Class.name
+	const Impl = Class
+	const faceSymbol = Symbol(`eldc-face-${faceName}`)
+	const Face = oFunction('DefaultImpl', 'BoxContext', 'faceSymbol', 'symImpl', `
+		return class ${faceName} extends DefaultImpl {
+			constructor(...args) {
+				const box = BoxContext.Current
+				if(new.target === ${faceName}) return new box[faceSymbol](...args)
+				if(new.target) return super(...args)
+				return box[faceSymbol].call(this, ...args)
+			}
+			static [Symbol.hasInstance](instance) {
+				return instance instanceof BoxContext.Current[faceSymbol]
+			}
+		}
+	`)(Class, BoxContext, faceSymbol, symImpl)
+
+	Face[symFace] = faceSymbol
+	defineProperty(Face, SymBoxed, {get() {return BoxContext.Current[faceSymbol]}})
+	BoxContext.Top.register(Face, Impl)
+	return Face as T & {[SymBoxed]: T}
+}
+
+
+/*
+// immediately create a box from the template, and run function in box
+box(
+	ClassA, ImplA,
+	ClassB, ImplB
+)(() => {
+	const x = new ClassA()
+})
+
+// here we create a box from the template, and return
+// a 'runIn' function that always runs in the box using
+// the context box created in
+
+const boxed = box(
+	ClassA, ImplA,
+	ClassB, ImplB
+)
+
+boxed(() => {
+	const x = new ClassA()
+})
+
+
+
+// here we create a template that returns a 'runIn' function.
+// when runIn(fn) is called, the template is registered.
+// this means Impl's may be from other boxes of higher context
+const boxer = box(
+	ClassA, ImplA,
+	ClassB, ImplB
+)()
+
+boxer(() => {
+	const x = new ClassA()
+})
+
+
+
+
+
+ */
+export function box(...faceImpls) {
+	const boundBox = BoxFactory({faceImpls})
+	return fn => isFn(fn) ? boundBox(fn) : fn => BoxFactory({faceImpls})(fn)
+}
+
+
+/*
 let nextId = 0
-class Box {
+class Boxx {
 	id = nextId++
 	static Top
 	static Current
@@ -72,8 +194,9 @@ class Box {
 		}
 	}
 }
+*/
 
-
+/*
 const Boxed = defineContext({}, {
 	create(using) {
 		return new Box(using)
@@ -87,11 +210,11 @@ const Boxed = defineContext({}, {
 		Box.Current = this
 	}
 })
+*/
+//export function box(...using) {return Box.Boxit(using)}
 
-export function box(...using) {return Box.Boxit(using)}
-
-
-export function newjs(Impl) {
+/*
+export function newjsx(Impl) {
 	let env
 	let NewJs_ = Impl.NewJs || NewJs
 	const symClass = Symbol(`newjs-${Impl.name}`)
@@ -131,6 +254,6 @@ export function newjs(Impl) {
 	env = Box.Top.register(Meta, Impl)
 	return Class
 }
+*/
 
-
-export default newjs
+//export default newjs
