@@ -1,10 +1,10 @@
 'use strict'
 
 
-import context, {Context, oFunction} from 'eldc'
+import Context, {oFunction} from 'eldc'
 
 const {
-	create: objCreate,
+	create,
 	defineProperty,
 	getOwnPropertyDescriptor,
 	getOwnPropertyNames,
@@ -19,81 +19,191 @@ const {
 } = require('util')
 
 const symClassSym = Symbol('newjs-class-symbol')
-export const SymBoxed = Symbol('newjs-boxed')
-const symFace = Symbol('newjs-face-symbol')
+export const SymUnboxed = Symbol('newjs-boxed')
+const symFaceSymbol = Symbol('newjs-impl-symbol')
 
 const symBox = Symbol('newjs-box')
 
-const symImpl = Symbol('newjs-impl')
+const symStatics = Symbol('newjs-statics')
+//const symImpl = Symbol('newjs-impl')
 
-class BoxContext extends Context {
-	constructor(props, initial, parent) {
-		super(props, initial, parent)
-		parent && setPrototypeOf(this, parent)
-		this.registerTemplate(initial.faceImpls)
+
+let top:BoxContext
+class BoxContext {
+	// this always defined, declared here for typed access
+	static Current:BoxContext
+
+	// statics define contextualized properties and their defaults
+	static faceImpls = []  // must ALWAYS set default value, even if 'null' or 'undefined'
+	// define instance name to access from both static and instance methods
+	faceImpls!:Array<any>
+
+
+
+	initialize(parent) {
+		parent && setPrototypeOf(this, parent) || (top = this)
+		this.bindTemplate(this.faceImpls)
 	}
 
-	registerTemplate(faceImpls) {
+	//softSwitch(from) {
+	//}
+
+	//hardSwitch(from) {
+	//}
+
+
+	bindTemplate(faceImpls) {
 		const len = faceImpls.length
 		let i = 0
 		while(i < len) {
 			const Face = faceImpls[i++]
-			if(isArr(Face)) this.registerTemplate(Face)
+			if(isArr(Face)) this.bindTemplate(Face)
 			else {
 				let Impl = faceImpls[i++]
 					|| (class {constructor() {throw new Error(`${Face.name} de-implemented`)}})
-				this.register(Face, Impl)
+				this.bind(Face, Impl)
 			}
 		}
 	}
 
-	register(Face, Impl) {
-		const faceSymbol = Face[symFace]
-		if(!faceSymbol) throw new Error('not a newjs class')
-		defineProperty(Impl.prototype, 'constructor', {
-			configurable: true,
-			enumerable: true,
-			writable: true,
-			value: Face
-		})
-		this[faceSymbol] = Impl
+	bind(Face, Impl) {
+		const symFace = Face[symFaceSymbol]
+		if(!symFace) throw new Error('not a newjs class')
+		defineProperty(Impl.prototype, 'constructor',
+			{configurable: true, enumerable: true, writable: true, value: Face})
+		this[symFace] = Impl
+
+
+		 this[symFace][symStatics]
 	}
-
-	// statics define contextualized properties and their defaults
-	static faceImpls = []
-
-	static Top:BoxContext
-	static Current:BoxContext
 }
 
-const BoxFactory = context(BoxContext)
+const BoxFactory = Context(BoxContext)
 
 
-export default function newjs<T extends Function>(Class:T) {
+function makeClassObjectCreator(Face, statics) {
+	/*
+	const props = Object.getOwnPropertyNames(Face)
+	let idx = props.length
+	while(idx--) {
+		const name = props[idx]
+		if(name === 'length' || name === 'prototype' || name === 'name') continue
+
+	}
+
+	defineProperty(Face, name, {
+		configurable: true
+	})
+
+	return function() {
+		const classObj = create(null)
+
+	}
+	*/
+}
+
+
+function newnew<T extends Function>(Class:T, isAlsoFn, statics) {
 	if(!isFn(Class) || !Class.prototype) throw new Error('sorry... your core is iron.. going supernova')
 	const faceName = Class.name
-	const Impl = Class
-	const faceSymbol = Symbol(`eldc-face-${faceName}`)
-	const Face = oFunction('DefaultImpl', 'BoxContext', 'faceSymbol', 'symImpl', `
-		return class ${faceName} extends DefaultImpl {
-			constructor(...args) {
-				const box = BoxContext.Current
-				if(new.target === ${faceName}) return new box[faceSymbol](...args)
-				if(new.target) return super(...args)
-				return box[faceSymbol].call(this, ...args)
-			}
-			static [Symbol.hasInstance](instance) {
-				return instance instanceof BoxContext.Current[faceSymbol]
-			}
-		}
-	`)(Class, BoxContext, faceSymbol, symImpl)
+	const DefaultImpl = Class
+	const symFace = Symbol(`eldc-face-${faceName}`)
 
-	Face[symFace] = faceSymbol
-	defineProperty(Face, SymBoxed, {get() {return BoxContext.Current[faceSymbol]}})
-	BoxContext.Top.register(Face, Impl)
-	return Face as T & {[SymBoxed]: T}
+	const newCode = isAlsoFn
+		? `
+			function ${faceName}() {
+				const a = arguments, l = a.length
+				const Impl = BoxContext.Current[symFace]
+				if(new.target === ${faceName}) {
+					return (
+						l<1?new Impl():
+						l<2?new Impl(a[0]):
+						l<3?new Impl(a[0],a[1]):
+						l<4?new Impl(a[0],a[1],a[2]):
+						l<5?new Impl(a[0],a[1],a[2],a[3]):
+						l<6?new Impl(a[0],a[1],a[2],a[3],a[4]):
+						l<7?new Impl(a[0],a[1],a[2],a[3],a[4],a[5]):
+						l<8?new Impl(a[0],a[1],a[2],a[3],a[4],a[5],a[6]):
+						l<9?new Impl(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]):
+						new Impl(...a)
+					)
+				}
+				return (
+					l<1?Impl.call(this):
+					l<2?Impl.call(this,a[0]):
+					l<3?Impl.call(this,a[0],a[1]):
+					l<4?Impl.call(this,a[0],a[1],a[2]):
+					l<5?Impl.call(this,a[0],a[1],a[2],a[3]):
+					l<6?Impl.call(this,a[0],a[1],a[2],a[3],a[4]):
+					l<7?Impl.call(this,a[0],a[1],a[2],a[3],a[4],a[5]):
+					l<8?Impl.call(this,a[0],a[1],a[2],a[3],a[4],a[5],a[6]):
+					l<9?Impl.call(this,a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]):
+					Impl.apply(this,a)
+				)
+			}
+			
+			Object.defineProperty(${faceName}, Symbol.hasInstance, 
+				{value: function(instance) {return instance instanceof BoxContext.Current[symFace]}})
+				
+			return ${faceName}		
+		`
+		: `
+			return class ${faceName} extends ${faceName}$Impl {
+				constructor() {
+					const a = arguments, l = a.length
+					const box = BoxContext.Current
+					if(new.target === ${faceName}) {
+						return (
+							l<1?new box[symFace]():
+							l<2?new box[symFace](a[0]):
+							l<3?new box[symFace](a[0],a[1]):
+							l<4?new box[symFace](a[0],a[1],a[2]):
+							l<5?new box[symFace](a[0],a[1],a[2],a[3]):
+							l<6?new box[symFace](a[0],a[1],a[2],a[3],a[4]):
+							l<7?new box[symFace](a[0],a[1],a[2],a[3],a[4],a[5]):
+							l<8?new box[symFace](a[0],a[1],a[2],a[3],a[4],a[5],a[6]):
+							l<9?new box[symFace](a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]):
+							new box[symFace](...a)
+						)
+					}
+					return (
+						l<1?super():
+						l<2?super(a[0]):
+						l<3?super(a[0],a[1]):
+						l<4?super(a[0],a[1],a[2]):
+						l<5?super(a[0],a[1],a[2],a[3]):
+						l<6?super(a[0],a[1],a[2],a[3],a[4]):
+						l<7?super(a[0],a[1],a[2],a[3],a[4],a[5]):
+						l<8?super(a[0],a[1],a[2],a[3],a[4],a[5],a[6]):
+						l<9?super(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]):
+						super(...a)
+					)
+				}
+				static [Symbol.hasInstance](instance) {
+					return instance instanceof BoxContext.Current[symFace]
+				}
+			}
+		`
+	const Face = oFunction(`${faceName}$Impl`, 'BoxContext', 'symFace', newCode)(DefaultImpl, BoxContext, symFace)
+
+	defineProperty(Face, 'length', {configurable: true, enumerable: true, value: DefaultImpl.length})
+	Face[symFaceSymbol] = symFace
+	defineProperty(Face, SymUnboxed, {get() {return BoxContext.Current[symFace]}})
+	makeClassObjectCreator(Face, statics)
+	top.bind(Face, DefaultImpl)
+	return Face as T & {[SymUnboxed]: T}
 }
 
+//@newjs(['static_one', 'static_n'])
+
+export function newjs(Class) {return newnew(Class, false, [])}
+export function newfn(fn) {return newnew(fn, true, [])}
+
+// if using ctor function in 'instanceof' checks on hosts not supporting Symbol.hasInstance (ie11)
+export function oldnew(fn) {return null}
+
+
+export default newjs
 
 /*
 // immediately create a box from the template, and run function in box
